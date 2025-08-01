@@ -4,11 +4,18 @@ import path from 'path';
 import fs from 'fs';
 import config from './config/config';
 import connectDB from './config/database';
-
+import User from './models/User';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+// Import routes
+import authRoutes from './routes/authRoutes';
 
 // Initialize express app
 const app = express();
 
+// Connect to MongoDB
+connectDB().then(() => {
+  createDefaultAccounts().catch(err => console.error('Default account creation error:', err));
+});
 // Middleware
 const allowedOrigins = [
   config.frontendBaseUrl,
@@ -46,6 +53,8 @@ if (!fs.existsSync(config.uploadDir)) {
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// API Routes
+app.use('/api/auth', authRoutes);
 
 
 
@@ -53,6 +62,35 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', message: 'API is running' });
 });
+
+app.use(notFoundHandler);
+
+// Global error handler
+app.use(errorHandler); 
+
+// After DB connection, create default accounts if not exist
+async function createDefaultAccounts() {
+  const admin = await User.findOne({ username: 'admin' })
+  if (!admin) {
+    await User.create({
+      username: 'admin',
+      email: 'admin@example.com',
+      password: 'admin123',
+      role: 'admin'
+    })
+    console.log('Default admin account created: admin / admin123')
+  }
+  const user = await User.findOne({ username: 'user' })
+  if (!user) {
+    await User.create({
+      username: 'user',
+      email: 'user@example.com',
+      password: 'user123',
+      role: 'user'
+    })
+    console.log('Default user account created: user / user123')
+  }
+}
 
 
 // Start server
