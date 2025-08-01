@@ -1,76 +1,71 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt, { JwtPayload as DefaultJwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import config from '../config/config';
 import User from '../models/User';
 import { createError } from './errorHandler';
 
-// Định nghĩa kiểu Payload riêng (bổ sung nếu muốn mở rộng)
-interface CustomJwtPayload extends DefaultJwtPayload {
+interface JwtPayload {
   id: string;
   role: string;
 }
 
-// Mở rộng lại Express Request để thêm `user`
-declare module 'express-serve-static-core' {
-  interface Request {
-    user?: {
-      id: string;
-      role: string;
-    };
+// Extend Express Request type
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+        role: string;
+      };
+    }
   }
 }
 
-/**
- * Xác thực người dùng từ JWT
- */
-export async function authenticate(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader?.startsWith('Bearer ')) {
-    return next(createError('Access token is missing or invalid', 401));
-  }
-
-  const token = authHeader.split(' ')[1];
-
-  let decoded: CustomJwtPayload;
-
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    decoded = jwt.verify(token, config.jwtSecret) as CustomJwtPayload;
-  } catch {
-    return next(createError('Token is invalid or expired', 401));
-  }
-
-  try {
-    const user = await User.findById(decoded.id).select('-password');
-    if (!user) {
-      return next(createError('User not found or deleted', 401));
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next(createError('Authentication required. No token provided.', 401));
     }
 
-    req.user = {
-      id: decoded.id,
-      role: decoded.role
-    };
-
-    next();
-  } catch (err) {
-    console.error('Auth error:', err);
-    return next(createError('Authentication failed internally', 500));
+    const token = authHeader.split(' ')[1];
+    
+    try {
+      const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
+      
+      // Check if user still exists
+      const user = await User.findById(decoded.id).select('-password');
+      if (!user) {
+        return next(createError('User no longer exists', 401));
+      }
+      
+      // Add user info to request
+      req.user = {
+        id: decoded.id,
+        role: decoded.role
+      };
+      
+      next();
+    } catch (error) {
+      return next(createError('Invalid token', 401));
+    }
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    return next(createError('Server authentication error', 500));
   }
-}
+};
 
-/**
- * Phân quyền theo vai trò
- */
-export function authorize(...allowedRoles: string[]) {
+export const authorize = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return next(createError('User not authenticated', 401));
+      return next(createError('Authentication required', 401));
     }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(createError('Permission denied', 403));
+    
+    if (!roles.includes(req.user.role)) {
+      return next(createError('Not authorized to access this resource', 403));
     }
-
+    
     next();
   };
-}
+}; 
