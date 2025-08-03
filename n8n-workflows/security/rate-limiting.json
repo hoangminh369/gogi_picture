@@ -1,0 +1,131 @@
+{
+    "name": "Advanced Rate Limit Handler",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "/api/limit/check"
+        },
+        "name": "Rate Limit Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [200, 300]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Tạo fingerprint đơn giản\nconst headers = $json.headers || {};\nconst ip = headers['x-forwarded-for'] || $json.ip || 'unknown';\nconst clientId = headers['x-client-id'] || 'guest';\nconst identifier = `${clientId}_${ip}`;\n\nreturn [{ json: { identifier, timestamp: Date.now(), ...$json } }];"
+        },
+        "name": "Build Identifier",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [400, 300]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://redis-cache:8000/api/limit/check",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={ \"id\": \"{{ $json.identifier }}\" }"
+        },
+        "name": "Redis Check",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [600, 300]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "boolean": [
+              {
+                "value1": "={{ $json.allow === true }}",
+                "value2": true
+              }
+            ]
+          }
+        },
+        "name": "Check Allowed",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [800, 300]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://redis-cache:8000/api/limit/increment",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={ \"id\": \"{{ $json.identifier }}\" }"
+        },
+        "name": "Increment Usage",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [1000, 200]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { status: 'allowed', code: 200, message: 'Request accepted.' } }];"
+        },
+        "name": "Success Response",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [1200, 200]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { status: 'blocked', code: 429, message: 'Too many requests. Please wait before retrying.' } }];"
+        },
+        "name": "Too Many Requests",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 1,
+        "position": [1000, 400]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://logger-service:8000/api/log",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"level\": \"warning\",\n  \"message\": \"Blocked request from {{ $json.identifier }}\",\n  \"data\": $json\n}"
+        },
+        "name": "Log Blocked Request",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 3,
+        "position": [1200, 400]
+      }
+    ],
+    "connections": {
+      "Rate Limit Webhook": {
+        "main": [[{ "node": "Build Identifier", "type": "main", "index": 0 }]]
+      },
+      "Build Identifier": {
+        "main": [[{ "node": "Redis Check", "type": "main", "index": 0 }]]
+      },
+      "Redis Check": {
+        "main": [[{ "node": "Check Allowed", "type": "main", "index": 0 }]]
+      },
+      "Check Allowed": {
+        "main": [
+          [{ "node": "Increment Usage", "type": "main", "index": 0 }],
+          [{ "node": "Too Many Requests", "type": "main", "index": 0 }]
+        ]
+      },
+      "Increment Usage": {
+        "main": [[{ "node": "Success Response", "type": "main", "index": 0 }]]
+      },
+      "Too Many Requests": {
+        "main": [[{ "node": "Log Blocked Request", "type": "main", "index": 0 }]]
+      }
+    },
+    "active": true,
+    "tags": [
+      { "name": "rate-limit" },
+      { "name": "redis" },
+      { "name": "security" }
+    ],
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "id": "rate-limit-alt"
+  }
+  
