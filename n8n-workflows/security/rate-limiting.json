@@ -1,76 +1,49 @@
 {
-    "name": "Advanced Rate Limit Handler",
+    "name": "Rate Limiting",
     "nodes": [
       {
         "parameters": {
-          "httpMethod": "POST",
-          "path": "/api/limit/check"
+          "httpMethod": "GET",
+          "path": "/api/rate-limiter",
+          "options": {}
         },
-        "name": "Rate Limit Webhook",
+        "name": "Webhook",
         "type": "n8n-nodes-base.webhook",
         "typeVersion": 1,
-        "position": [200, 300]
+        "position": [
+          250,
+          300
+        ],
+        "webhookId": "rate-limiter-webhook"
       },
       {
         "parameters": {
-          "jsCode": "// Tạo fingerprint đơn giản\nconst headers = $json.headers || {};\nconst ip = headers['x-forwarded-for'] || $json.ip || 'unknown';\nconst clientId = headers['x-client-id'] || 'guest';\nconst identifier = `${clientId}_${ip}`;\n\nreturn [{ json: { identifier, timestamp: Date.now(), ...$json } }];"
+          "jsCode": "// Extract client info\nconst request = $input.first().json;\nconst ip = request.headers['x-forwarded-for'] || request.ip || 'unknown';\nconst userAgent = request.headers['user-agent'] || 'unknown';\nconst path = request.path || request.url || 'unknown';\nconst method = request.method || 'GET';\nconst clientId = request.headers['x-client-id'] || 'anonymous';\nconst token = request.headers['authorization'] || '';\n\nconst requestKey = `${ip}:${path}:${method}`;\n\n// Create rate limit info\nreturn [\n  {\n    json: {\n      timestamp: new Date().toISOString(),\n      ip,\n      userAgent,\n      path,\n      method,\n      clientId,\n      hasAuthToken: !!token,\n      requestKey\n    }\n  }\n];"
         },
-        "name": "Build Identifier",
+        "name": "Extract Client Info",
         "type": "n8n-nodes-base.code",
         "typeVersion": 1,
-        "position": [400, 300]
+        "position": [
+          450,
+          300
+        ]
       },
       {
         "parameters": {
-          "method": "POST",
-          "url": "http://redis-cache:8000/api/limit/check",
-          "sendBody": true,
-          "specifyBody": "json",
-          "jsonBody": "={ \"id\": \"{{ $json.identifier }}\" }"
-        },
-        "name": "Redis Check",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 3,
-        "position": [600, 300]
-      },
-      {
-        "parameters": {
-          "conditions": {
-            "boolean": [
+          "method": "GET",
+          "url": "=http://localhost:5678/api/rate-limiter/check?key={{ $json.requestKey }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
               {
-                "value1": "={{ $json.allow === true }}",
-                "value2": true
+                "name": "Content-Type",
+                "value": "application/json"
               }
             ]
           }
         },
-        "name": "Check Allowed",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 1,
-        "position": [800, 300]
-      },
-      {
-        "parameters": {
-          "method": "POST",
-          "url": "http://redis-cache:8000/api/limit/increment",
-          "sendBody": true,
-          "specifyBody": "json",
-          "jsonBody": "={ \"id\": \"{{ $json.identifier }}\" }"
-        },
-        "name": "Increment Usage",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 3,
-        "position": [1000, 200]
-      },
-      {
-        "parameters": {
-          "jsCode": "return [{ json: { status: 'allowed', code: 200, message: 'Request accepted.' } }];"
-        },
-        "name": "Success Response",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 1,
-        "position": [1200, 200]
-      },
       {
         "parameters": {
           "jsCode": "return [{ json: { status: 'blocked', code: 429, message: 'Too many requests. Please wait before retrying.' } }];"
