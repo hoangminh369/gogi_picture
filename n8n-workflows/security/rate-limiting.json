@@ -94,38 +94,99 @@
         "position": [1200, 400]
       }
     ],
-    "connections": {
-      "Rate Limit Webhook": {
-        "main": [[{ "node": "Build Identifier", "type": "main", "index": 0 }]]
-      },
-      "Build Identifier": {
-        "main": [[{ "node": "Redis Check", "type": "main", "index": 0 }]]
-      },
-      "Redis Check": {
-        "main": [[{ "node": "Check Allowed", "type": "main", "index": 0 }]]
-      },
-      "Check Allowed": {
-        "main": [
-          [{ "node": "Increment Usage", "type": "main", "index": 0 }],
-          [{ "node": "Too Many Requests", "type": "main", "index": 0 }]
+  "Extract Client Info": {
+      "main": [
+        [
+          {
+            "node": "Check Rate Limit",
+            "type": "main",
+            "index": 0
+          }
         ]
-      },
-      "Increment Usage": {
-        "main": [[{ "node": "Success Response", "type": "main", "index": 0 }]]
-      },
-      "Too Many Requests": {
-        "main": [[{ "node": "Log Blocked Request", "type": "main", "index": 0 }]]
-      }
+      ]
     },
-    "active": true,
-    "tags": [
-      { "name": "rate-limit" },
-      { "name": "redis" },
-      { "name": "security" }
-    ],
-    "settings": {
-      "executionOrder": "v1"
+    "Check Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Is Allowed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "id": "rate-limit-alt"
+    "Is Allowed": {
+      "main": [
+        [
+          {
+            "node": "Increment Counter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Rate Limit Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Counter": {
+      "main": [
+        [
+          {
+            "node": "Allow Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Rate Limit Error": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Response": {
+      "main": [
+        [
+          {
+            "node": "Log Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromAnyOwner",
+    "errorWorkflow": "error-handling"
+  },
+  "tags": [
+    {
+      "name": "security"
+    },
+    {
+      "name": "rate-limiting"
+    }
+  ],
+  "versionId": "1",
+  "id": "rate-limiting",
+  "meta": {
+    "instanceId": "local-instance"
   }
+} 
   
