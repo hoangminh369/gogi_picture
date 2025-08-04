@@ -332,7 +332,40 @@
             }
           ]
         ]
-     
+      },
+      "Get Chatbot Config": {
+        "main": [
+          [
+            {
+              "node": "Prepare Notifications",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Notifications": {
+        "main": [
+          [
+            {
+              "node": "Process Each Notification",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Process Each Notification": {
+        "main": [
+          [
+            {
+              "node": "If Zalo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
       "If Zalo": {
         "main": [
           [
@@ -351,7 +384,17 @@
           ]
         ]
       },
-   
+      "Send Zalo Message": {
+        "main": [
+          [
+            {
+              "node": "Log Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
       "Send Facebook Message": {
         "main": [
           [
@@ -374,7 +417,18 @@
           ]
         ]
       },
-
+      "Continue Processing": {
+        "main": [
+          [
+            {
+              "node": "Log Results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
     "active": false,
     "settings": {
       "executionOrder": "v1",
