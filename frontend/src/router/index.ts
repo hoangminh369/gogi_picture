@@ -10,7 +10,6 @@ import LoginPage from '@/pages/LoginPage.vue'
 import RegisterPage from '@/pages/RegisterPage.vue'
 import AdminDashboard from '@/pages/admin/AdminDashboard.vue'
 import UserManagement from '@/pages/admin/UserManagement.vue'
-import WorkflowManagement from '@/pages/admin/WorkflowManagement.vue'
 import SystemConfig from '@/pages/admin/SystemConfig.vue'
 import UserDashboard from '@/pages/user/UserDashboard.vue'
 import ImageGallery from '@/pages/user/ImageGallery.vue'
@@ -50,11 +49,6 @@ const routes: RouteRecordRaw[] = [
         path: 'users',
         name: 'UserManagement',
         component: UserManagement
-      },
-      {
-        path: 'workflows',
-        name: 'WorkflowManagement',
-        component: WorkflowManagement
       },
       {
         path: 'config',
