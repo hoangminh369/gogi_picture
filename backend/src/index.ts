@@ -6,8 +6,14 @@ import config from './config/config';
 import connectDB from './config/database';
 import User from './models/User';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+
 // Import routes
 import authRoutes from './routes/authRoutes';
+import imageRoutes from './routes/imageRoutes';
+import driveRoutes from './routes/driveRoutes';
+import chatbotRoutes from './routes/chatbotRoutes';
+import workflowRoutes from './routes/workflowRoutes';
+import systemRoutes from './routes/systemRoutes';
 
 // Initialize express app
 const app = express();
@@ -16,6 +22,7 @@ const app = express();
 connectDB().then(() => {
   createDefaultAccounts().catch(err => console.error('Default account creation error:', err));
 });
+
 // Middleware
 const allowedOrigins = [
   config.frontendBaseUrl,
@@ -55,18 +62,47 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/images', imageRoutes);
+app.use('/api/drive', driveRoutes);
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/workflows', workflowRoutes);
+app.use('/api/system', systemRoutes);
 
-
+// Import deepface service for health check
+import deepFaceService from './services/deepFaceService';
 
 // Health check endpoints (public access)
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', message: 'API is running' });
 });
 
+app.get('/deepface-health', async (req: Request, res: Response) => {
+  try {
+    const healthCheck = await deepFaceService.checkPythonEnvironment();
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        isReady: healthCheck.isReady,
+        error: healthCheck.error,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('DeepFace health check error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Health check failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Handle 404 errors for routes that don't exist
 app.use(notFoundHandler);
 
 // Global error handler
-app.use(errorHandler); 
+app.use(errorHandler);
 
 // After DB connection, create default accounts if not exist
 async function createDefaultAccounts() {
@@ -91,7 +127,6 @@ async function createDefaultAccounts() {
     console.log('Default user account created: user / user123')
   }
 }
-
 
 // Start server
 const PORT = config.port;
