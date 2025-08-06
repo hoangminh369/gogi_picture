@@ -151,14 +151,15 @@ py -3.10 --version
 cd c:\Gogi\backend\scripts\python
 
 # Kích hoạt venv (dạng đúng: (venv) PS C:\Gogi\backend\scripts\python>)
-.\venv\Scripts\Activate 
 py -3.10 -m venv venv
+.\venv\Scripts\Activate 
+
 
 # Update pip
 python -m pip install --upgrade pip
 
 # Cài 2 thư viện
-pip install -r requirements-min.txt
+pip install -r requirements.txt
 pip install -r requirements-minimal.txt
 ```
 
